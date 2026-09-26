@@ -18,7 +18,7 @@ npx cap sync ios            # 同步到 iOS 工程
 npx cap open ios            # 用 Xcode 打开（仅 macOS）
 ```
 
-本地联调热更新：在 `capacitor.config.ts` 的 `server.url` 填入电脑局域网 IP（如 `http://192.168.1.10:5173`），
+本地联调热更新：在 `capacitor.config.json` 的 `server` 下加 `url` 填入电脑局域网 IP（如 `http://192.168.1.10:5173`），
 `npm run dev` + `npx cap sync ios` + `npx cap run ios`。
 
 ## 云端无签名出包（核心）
@@ -36,7 +36,7 @@ npx cap open ios            # 用 Xcode 打开（仅 macOS）
 
 | 文件 | 作用 |
 |---|---|
-| `capacitor.config.ts` | Capacitor 主配置（appId / appName / webDir） |
+| `capacitor.config.json` | Capacitor 主配置（appId / appName / webDir） |
 | `scripts/build-ios-unsigned.sh` | 云端 macOS 上执行的「构建+无签名打包」脚本 |
 | `codemagic.yaml` | Codemagic 云端构建工作流 |
 | `public/` | 已有的 manifest / service worker / 图标（PWA 资源，Capacitor 一并打包） |

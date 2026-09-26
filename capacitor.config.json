@@ -1,0 +1,11 @@
+{
+  "appId": "com.radiator.profit",
+  "appName": "暖气片利润计算器",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "scheme": "App"
+  }
+}
