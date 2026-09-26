@@ -16,7 +16,9 @@ workflows:
     instance_type: mac_mini_m1
 
     environment:
-      node: "20"
+      # Capacitor CLI 8.x 要求 Node >= 22，必须与本地 Node 版本一致，否则
+      # cap add / cap sync 会被直接拒绝（[fatal] The Capacitor CLI requires NodeJS >=22.0.0）
+      node: "22"
       # Codemagic 当前默认 Xcode 为 26.6；用 latest 别名自动跟随最新稳定版，
       # 避免写死版本日后被废弃导致构建失败。如需锁定可改回具体版本号。
       xcode: "latest"
