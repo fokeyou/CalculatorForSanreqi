@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.workbuddy/
+*.genie
+vite.config.js.timestamp-*.mjs
+备份/
+公网访问二维码.png
+手机访问二维码.png
+.DS_Store

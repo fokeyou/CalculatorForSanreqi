@@ -1,0 +1,48 @@
+# codemagic.yaml —— 暖气片利润计算器 · iOS 无签名云端构建（面向 TrollStore）
+#
+# 用法：
+#   1) 在 https://codemagic.io 用 GitHub/GitLab 账号连接本仓库
+#   2) 指定本文件为构建配置（或粘贴内容到 Workflow 编辑器）
+#   3) 启动构建，产物 radiator-profit-unsigned.ipa 会作为 artifact 下载
+#   4) 把 ipa 传到 iPhone，用 TrollStore 打开安装（永久生效，无需 Apple 签名）
+#
+# 注意：本流程不使用任何 Apple 开发者证书，因此只能用于 TrollStore /
+#       巨魔 安装，不能上架 App Store 或 TestFlight。
+
+workflows:
+  capacitor-ios-unsigned:
+    name: Capacitor iOS (unsigned for TrollStore)
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+
+    environment:
+      node: "20"
+      # 如 Codemagic 上可用 Xcode 版本不同，请按需调整；也可用 latest
+      xcode: "16.0"
+      cocoapods: default
+
+    triggering:
+      branch_patterns:
+        - pattern: feat/capacitor-ios
+          include: true
+
+    scripts:
+      - name: 构建前端 + 同步 iOS
+        script: |
+          npm ci
+          npm run build
+          if [ ! -d "ios" ]; then npx cap add ios; fi
+          npx cap sync ios
+
+      - name: 无签名打包 ipa
+        script: |
+          chmod +x scripts/build-ios-unsigned.sh
+          ./scripts/build-ios-unsigned.sh
+
+    artifacts:
+      - radiator-profit-unsigned.ipa
+
+    publishing:
+      email:
+        recipients:
+          - user@example.com   # 改成你的邮箱，构建完成会收到下载链接

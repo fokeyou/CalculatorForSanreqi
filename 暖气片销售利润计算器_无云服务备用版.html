@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>暖气片销售利润计算器</title>
+
+<!-- ===== PWA ===== -->
+<meta name="description" content="暖气片销售报价与利润核算：按房间×规格填片数，自动推算组数、阀门、材料与安装，支持赠送、配送费与价格库配置，可离线安装到手机桌面。">
+<meta name="theme-color" content="#e0562e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="暖气片利润">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" id="pwaManifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #e2e6ec;
+    --text: #1f2d3d;
+    --muted: #7a8699;
+    --primary: #e0562e;
+    --primary-dark: #c74420;
+    --accent: #2e6fe0;
+    --red: #d92e2e;
+    --green: #1a9e57;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px 16px 60px;
+  }
+  .container { max-width: 1120px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-size: 26px; }
+  header h1 .icon { font-size: 30px; }
+  header .formula {
+    display: inline-block; margin-top: 10px; padding: 6px 16px; background: #fff4ef;
+    border: 1px solid #ffd9c9; border-radius: 20px; font-size: 13px; color: var(--primary-dark);
+  }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 22px; box-shadow: 0 2px 8px rgba(31,45,61,.05); margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 16px; margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); display: inline-block; }
+  .card h2 .spacer { flex: 1; }
+  .card h2 .pick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: normal; }
+  .pick select {
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px;
+    background: #fafbfc; color: var(--text); outline: none; cursor: pointer;
+  }
+  .pick select:focus { border-color: var(--accent); }
+
+  /* ===== 房间 × 规格 ===== */
+  .room-head, .room-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .room-head { font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 2px 6px; border-bottom: 1px solid var(--border); }
+  .room-head .c-name, .room-row .c-name { flex: 1; min-width: 70px; }
+  .room-head .c-spec, .room-row .c-spec { width: 92px; text-align: center; flex-shrink: 0; }
+  .room-head .c-grp,  .room-row .c-grp  { width: 50px; text-align: center; flex-shrink: 0; }
+  .room-head .c-sum,  .room-row .c-sum  { width: 108px; text-align: right; flex-shrink: 0; }
+  .room-head .c-del,  .room-row .c-del  { width: 30px; flex-shrink: 0; }
+  .room-row input[type="text"] {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    font-size: 14px; background: #fafbfc; outline: none; color: var(--text); transition: border-color .15s;
+  }
+  .room-row input[type="text"]:focus { border-color: var(--accent); background: #fff; }
+  .room-row .c-spec input {
+    width: 62px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px;
+    font-size: 14px; text-align: right; background: #fafbfc; outline: none; color: var(--text);
+    transition: border-color .15s;
+  }
+  .room-row .c-spec input:focus { border-color: var(--accent); background: #fff; }
+  .room-row .c-spec .u { font-size: 12px; color: var(--muted); }
+  .room-row .c-spec .spec-label { display: none; }   /* 桌面端由表头显示规格名 */
+  .room-row input::-webkit-outer-spin-button,
+  .room-row input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .room-row .c-grp { font-size: 13px; font-weight: 700; color: var(--primary-dark); background: #fff4ef; border-radius: 6px; padding: 4px 0; }
+  .room-row .c-sum { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .room-row .del {
+    width: 30px; height: 30px; border: none; border-radius: 8px; background: #fdeaea;
+    color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; transition: background .15s;
+  }
+  .room-row .del:hover { background: #f9d3d3; }
+
+  .room-stats {
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-top: 10px;
+    padding: 10px 14px; background: #f8f9fb; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--muted);
+  }
+  .room-stats b { color: var(--primary-dark); font-size: 15px; margin: 0 3px; }
+  .room-stats .specline { color: var(--text); }
+  .room-stats .mode-pick { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  /* ===== 报价单 ===== */
+  .quote-head {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 12px; padding: 10px 14px; background: #fffaf7;
+    border: 1px solid #ffe3d5; border-radius: 8px; font-size: 13px; color: var(--muted);
+  }
+  .quote-head .qi { display: flex; align-items: center; gap: 6px; }
+  .quote-head input {
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px;
+    font-size: 13px; background: #fff; color: var(--text); outline: none; min-width: 120px;
+  }
+  .quote-head input:focus { border-color: var(--accent); }
+  .quote-head .spacer { flex: 1; }
+  .quote-head .no {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--primary); color: var(--primary-dark);
+    border-radius: 6px; padding: 5px 12px; font-weight: 700; font-size: 13px;
+    font-variant-numeric: tabular-nums; letter-spacing: .3px;
+  }
+  .quote-head .no .en { font-size: 10px; color: var(--muted); font-weight: normal; }
+  .quote-head .qi input.floor-in { min-width: 0; width: 66px; text-align: center; }
+  .quote-head .qi .unit-x { font-size: 12px; color: var(--muted); margin-left: -2px; }
+
+
+  table.items { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+  table.items th {
+    background: #f8f9fb; color: var(--muted); font-size: 12px; font-weight: 600;
+    padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border);
+  }
+  table.items th:first-child { text-align: left; border-radius: 8px 0 0 0; }
+  table.items th:last-child { border-radius: 0 8px 0 0; }
+  table.items td { padding: 7px 6px; border-bottom: 1px dashed var(--border); text-align: center; vertical-align: middle; }
+  table.items td.name { text-align: left; font-weight: 600; white-space: nowrap; }
+  table.items td.name .tag { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+  table.items tr:hover td { background: #fbfcfd; }
+  table.items tr.gift td { background: #f4fbf7; }
+  table.items select {
+    width: 100%; border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 8px; font-size: 13px; background: #fafbfc; color: var(--text); outline: none; cursor: pointer;
+  }
+  table.items select:focus { border-color: var(--accent); }
+  table.items select.empty { color: #b9c0cc; }
+  .cell-input { display: flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; }
+  table.items input[type="number"] {
+    width: 70px; border: 1px solid transparent; border-radius: 6px; padding: 7px 6px;
+    font-size: 14px; text-align: right; background: #fafbfc; color: var(--text); outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  table.items input[type="number"]:hover { border-color: var(--border); }
+  table.items input[type="number"]:focus { border-color: var(--accent); background: #fff; }
+  table.items input::-webkit-outer-spin-button,
+  table.items input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  table.items input.auto-qty {
+    background: #fff4ef; border: 1px solid #ffd9c9; color: var(--primary-dark);
+    cursor: not-allowed; font-weight: 600;
+  }
+  input.gift-chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); }
+  .qty-note { display: block; font-size: 10px; color: #a5aebc; margin-top: 2px; }
+  .qty-unit { font-size: 12px; color: var(--muted); margin-left: 2px; }
+
+  .brand-chip {
+    display: inline-block; background: #eef4ff; color: var(--accent); border: 1px solid #cfdcf7;
+    border-radius: 5px; padding: 4px 10px; font-size: 13px; font-weight: 600;
+  }
+  .brand-chip.none { background: #f4f6f9; color: #b9c0cc; border-color: var(--border); }
+
+  .spec-qty {
+    display: block; text-align: left; font-size: 13px; line-height: 1.7;
+    background: #fffaf7; border: 1px solid #ffe3d5; border-radius: 6px; padding: 6px 9px;
+  }
+  .spec-qty .seg { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .spec-qty .seg b { color: var(--primary-dark); font-size: 14px; }
+  .spec-qty .plus { color: var(--muted); margin: 0 5px; }
+  .spec-qty .total { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .spec-qty.none { color: #b9c0cc; text-align: center; }
+
+  .qty-badge {
+    display: inline-block; font-size: 10px; color: var(--primary-dark); background: #fff4ef;
+    border-radius: 4px; padding: 0 4px; margin-left: 2px; vertical-align: 2px;
+  }
+  td.num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  td.num.income { color: var(--text); }
+  .gift-tag {
+    display: inline-block; background: #e6f7ee; color: var(--green); border: 1px solid #bfead2;
+    border-radius: 5px; padding: 1px 8px; font-size: 12px; font-weight: 600;
+  }
+  .strike { text-decoration: line-through; color: #b9c0cc; font-weight: normal; font-size: 12px; display: block; }
+
+  table.items tfoot td {
+    border-bottom: none; border-top: 2px solid var(--border); padding-top: 10px;
+    font-weight: 700; font-size: 15px; background: #fffaf7;
+  }
+  table.items tfoot td.label { text-align: right; color: var(--muted); font-size: 13px; font-weight: 600; }
+
+  .btn-detail {
+    background: #f8f9fb; color: var(--accent); border: 1px solid #cfdcf7;
+    padding: 7px 16px; font-size: 13px; border-radius: 8px; cursor: pointer;
+  }
+  .btn-detail:hover { filter: brightness(.96); }
+
+  button { padding: 9px 22px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: filter .15s; }
+  button:hover { filter: brightness(.95); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-ghost { background: #eef1f5; color: var(--text); }
+  .btn-add {
+    display: inline-flex; align-items: center; gap: 6px; background: #fff4ef;
+    color: var(--primary-dark); border: 1px dashed #f0b39a; font-size: 14px; padding: 9px 20px;
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+  .hint-bar { font-size: 12px; color: #a5aebc; margin-top: 10px; text-align: center; }
+  /* 仅手机端显示的横向滑动提示 */
+  .swipe-tip { display: none; font-size: 11px; color: #b9c0cc; margin-bottom: 6px; }
+
+  /* ===== 弹出框（通用） ===== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(24,32,44,.45); display: none;
+    align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 100; overflow: auto;
+  }
+  .overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 880px; box-shadow: 0 18px 50px rgba(20,28,40,.28); }
+  .modal.narrow { max-width: 620px; }
+  .modal .m-head { display: flex; align-items: center; padding: 16px 22px; border-bottom: 1px solid var(--border); background: #fbfcfd; }
+  .modal .m-head h3 { font-size: 17px; flex: 1; }
+  .modal .m-head .close { border: none; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
+  .modal .m-body { padding: 18px 22px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab { padding: 7px 15px; border-radius: 20px; border: 1px solid var(--border); background: #f8f9fb; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .subtabs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .subtab {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px 3px 4px; border-radius: 18px;
+    border: 1px solid #cfdcf7; background: #f4f7ff; color: var(--accent); font-size: 13px;
+  }
+  .subtab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .subtab input {
+    border: none; background: transparent; outline: none; color: inherit;
+    font-size: 13px; font-family: inherit; width: 84px; padding: 3px 4px; text-align: center;
+    border-bottom: 1px dashed currentColor; border-radius: 0; cursor: text; opacity: .85;
+  }
+  .subtab.active input { font-weight: 600; opacity: 1; }
+  .subtab input:hover { opacity: 1; }
+  .subtab input:focus { opacity: 1; border-radius: 4px; background: rgba(255,255,255,.75); }
+  .subtab.active input:focus { background: rgba(255,255,255,.22); }
+  .subtab .x {
+    font-size: 12px; opacity: .7; line-height: 1; cursor: pointer; padding: 0 3px;
+  }
+  .subtab .x:hover { opacity: 1; }
+  .subtab.add { border-style: dashed; background: #fff; color: var(--accent); cursor: pointer; padding: 6px 12px; }
+  .subtabs .hint-inline { font-size: 12px; color: #a5aebc; margin-left: 4px; }
+  table.lib { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.lib th {
+    background: #f8f9fb; color: var(--muted); font-size: 12px; font-weight: 600;
+    padding: 8px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  table.lib td { padding: 5px 8px 5px 0; border-bottom: 1px dashed var(--border); }
+  table.lib input {
+    width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 7px 9px;
+    font-size: 14px; background: #fafbfc; outline: none; color: var(--text); transition: border-color .15s;
+  }
+  table.lib input:hover { border-color: var(--border); }
+  table.lib input:focus { border-color: var(--accent); background: #fff; }
+  table.lib input.num-in { text-align: right; }
+  table.lib input::-webkit-outer-spin-button,
+  table.lib input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  table.lib .unit { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  table.lib .del {
+    width: 28px; height: 28px; border: none; border-radius: 6px; background: #fdeaea;
+    color: var(--red); cursor: pointer; font-size: 15px; line-height: 1; padding: 0;
+  }
+  table.lib .del:hover { background: #f9d3d3; }
+  .m-foot { display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border); background: #fbfcfd; flex-wrap: wrap; }
+  .m-foot .spacer { flex: 1; }
+  .m-tip { font-size: 12px; color: #a5aebc; padding: 0 22px 14px; }
+
+  /* ===== 汇总弹窗 ===== */
+  .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .result-grid .stat { border-radius: 10px; padding: 16px 18px; border: 1px solid var(--border); background: #f8f9fb; }
+  .result-grid .stat .k { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .result-grid .stat .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .result-grid .stat.total { background: linear-gradient(135deg, #fff4ef, #ffe9df); border-color: #ffd9c9; }
+  .result-grid .stat.total .v { font-size: 28px; }
+  .result-grid .stat.wide { grid-column: span 2; }
+  .result-grid .stat.span2 { grid-column: span 2; }
+  .result-grid .stat.wide .v { font-size: 20px; }
+  .v.green { color: var(--green); }
+  .v.red { color: var(--red); }
+  .v.dark { color: var(--text); }
+  .gift-note { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 13px; color: var(--green); }
+  .note-list { margin-top: 14px; padding: 12px 14px; background: #f8f9fb; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--muted); line-height: 1.9; }
+  .note-list b { color: var(--text); }
+
+  /* ===== 安装到桌面提示条 ===== */
+  .install-bar {
+    display: none; align-items: center; gap: 12px; margin-bottom: 16px;
+    padding: 11px 14px; background: #fff4ef; border: 1px solid #ffd9c9;
+    border-radius: 10px; font-size: 13px; color: var(--primary-dark);
+  }
+  .install-bar.show { display: flex; }
+  .install-bar .txt { flex: 1; line-height: 1.5; }
+  .install-bar .txt b { display: block; }
+  .install-bar .txt span { color: var(--muted); font-size: 12px; }
+  .install-bar button { padding: 7px 14px; font-size: 13px; flex-shrink: 0; }
+  .install-bar .close-x { border: none; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 2px; }
+
+  /* ============================================================
+     移动端适配（手机 / 小屏）
+     ============================================================ */
+  @media (max-width: 760px) {
+    body { padding: 12px 10px 40px; font-size: 15px; }
+    header { margin-bottom: 14px; }
+    header h1 { font-size: 19px; }
+    header h1 .icon { font-size: 22px; }
+    header .formula { font-size: 11px; padding: 6px 12px; border-radius: 14px; line-height: 1.6; }
+
+    .card { padding: 14px 13px; border-radius: 10px; margin-bottom: 14px; }
+    .card h2 { font-size: 15px; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .card h2 .pick { width: 100%; justify-content: space-between; font-size: 12px; }
+    .card h2 .pick select { flex: 1; min-width: 0; }
+
+    /* ---- 房间明细：表头隐藏，每行变成一张小卡片 ---- */
+    .room-head { display: none; }
+    /* 显式两列网格：所有子项按顺序自动落位（规格格子数量不定，不能靠手写列号） */
+    .room-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px 10px; align-items: center; margin: 0 0 12px;
+      padding: 11px; background: #fbfcfd; border: 1px solid var(--border); border-radius: 10px;
+    }
+    /* 关键：grid 子项必须显式 min-width:0，否则内部输入框的最小内容宽度会把列撑破、溢出屏幕 */
+    .room-row > div { margin-bottom: 0; min-width: 0; }
+    .room-row .c-name { grid-column: 1 / 2; }
+    .room-row .c-name input { font-weight: 600; min-width: 0; }
+    .room-row .c-del { grid-column: 2 / 3; justify-self: end; }
+    /* 隐藏表头后必须在每个格子内标出规格名，否则用户不知道在填哪个规格 */
+    .room-row .c-spec {
+      display: grid; grid-template-columns: minmax(0, 1fr) 44px auto; align-items: center; gap: 3px;
+      width: auto; min-width: 0; text-align: left;
+      background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px;
+    }
+    .room-row .c-spec .spec-label {
+      display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; min-width: 0;
+    }
+    .room-row .c-spec input {
+      width: 100%; min-width: 0; border: none; background: transparent; padding: 0; text-align: right;
+      font-size: 16px; font-weight: 600; color: var(--text);
+    }
+    .room-row .c-spec .u { font-size: 12px; }
+    .room-row .c-grp, .room-row .c-sum { width: auto; }
+    .room-row .c-grp {
+      grid-column: auto; text-align: left; padding: 8px 11px; font-size: 13px;
+    }
+    .room-row .c-grp::before { content: "组数 "; color: var(--muted); font-weight: 400; }
+    .room-row .c-sum { grid-column: auto; text-align: right; font-size: 14px; }
+
+    .room-stats { gap: 10px 16px; font-size: 12px; padding: 10px 12px; }
+    .room-stats b { font-size: 14px; }
+    .room-stats .mode-pick { margin-left: 0; width: 100%; justify-content: space-between; }
+    .room-stats .specline { width: 100%; }
+
+    /* ---- 报价单抬头：自动换行铺满 ---- */
+    .quote-head { gap: 8px 10px; padding: 10px 12px; }
+    .quote-head .qi { flex: 1 1 auto; font-size: 12px; }
+    .quote-head .qi input { flex: 1; min-width: 0; font-size: 13px; }
+    .quote-head .spacer { display: none; }
+    .quote-head .no { width: 100%; justify-content: center; margin-top: 2px; }
+
+    /* ---- 报价单表格：横向可滚动，避免挤压换行 ---- */
+    .table-wrap {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      margin: 0 -13px; padding: 0 13px 6px;
+      /* 右侧渐隐，提示可横向滑动 */
+      background:
+        linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left / 24px 100% no-repeat,
+        linear-gradient(to left, #fff 30%, rgba(255,255,255,0)) right / 24px 100% no-repeat,
+        radial-gradient(farthest-side at 0 50%, rgba(31,45,61,.10), rgba(31,45,61,0)) left / 10px 100% no-repeat,
+        radial-gradient(farthest-side at 100% 50%, rgba(31,45,61,.10), rgba(31,45,61,0)) right / 10px 100% no-repeat;
+      background-attachment: local, local, scroll, scroll;
+    }
+    table.items { min-width: 620px; }
+    table.items th, table.items td { padding: 8px 5px; }
+    table.items td.name { white-space: normal; }
+    table.items select { padding: 8px 6px; font-size: 12px; }
+    table.items input[type="number"] { width: 58px; }
+    .spec-qty { font-size: 12px; padding: 6px 8px; }
+
+    .hint-bar { text-align: left; line-height: 1.7; }
+    .swipe-tip { display: block !important; }
+    .btn-row { justify-content: stretch; }
+    .btn-row button { flex: 1; }
+
+    /* ---- 弹出框：贴边全宽，圆角收敛 ---- */
+    .overlay { padding: 10px 8px 24px; align-items: flex-start; }
+    .modal { border-radius: 12px; max-height: calc(100dvh - 34px); display: flex; flex-direction: column; }
+    .modal .m-head { padding: 13px 16px; }
+    .modal .m-head h3 { font-size: 16px; }
+    .modal .m-body { padding: 14px 16px; overflow-y: auto; }
+    .modal .m-foot, .m-tip { padding-left: 16px; padding-right: 16px; }
+    .m-foot { gap: 8px; }
+    .m-foot button { flex: 1; min-width: 0; padding: 10px 8px; font-size: 13px; }
+
+    .tabs { gap: 6px; }
+    .tab { padding: 7px 13px; font-size: 12px; }
+    .subtab input { width: 72px; }
+    .subtabs .hint-inline { width: 100%; margin-left: 0; }
+
+    /* ---- 价格库表格：横向滚动 ---- */
+    .lib-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.lib { min-width: 560px; }
+    table.lib input { font-size: 16px; }  /* ≥16px 防止 iOS 聚焦时自动放大 */
+
+    /* ---- 汇总弹窗 ---- */
+    .result-grid { grid-template-columns: 1fr; gap: 10px; }
+    .result-grid .stat { padding: 13px 14px; }
+    .result-grid .stat .v { font-size: 21px; }
+    .result-grid .stat.total .v { font-size: 24px; }
+    .result-grid .stat.wide, .result-grid .stat.span2 { grid-column: span 1; }
+    .result-grid .stat.wide .v { font-size: 15px; word-break: break-all; }
+
+    .install-bar { flex-wrap: wrap; }
+    .install-bar .txt { flex: 1 1 100%; }
+    .install-bar button { flex: 1; }
+  }
+
+  @media (max-width: 400px) {
+    body { padding: 10px 8px 36px; }
+    .room-row { grid-template-columns: 1fr; }
+    .room-row .c-del { grid-column: 1 / 2; justify-self: end; }
+    .room-row .c-grp, .room-row .c-sum { grid-column: 1 / 2; text-align: left; }
+    .room-row .c-grp { display: inline-block; width: auto; }
+  }
+
+  /* 深色环境下的状态栏与安全区适配 */
+  @supports (padding: max(0px)) {
+    body { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+    body { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+    .overlay { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="install-bar" id="installBar">
+    <div class="txt">
+      <b>📲 安装到手机桌面</b>
+      <span id="installHint">安装后可全屏使用、离线打开，数据仍保存在本机</span>
+    </div>
+    <button class="btn-primary" id="installBtn" style="display:none;">立即安装</button>
+    <button class="close-x" id="installClose" title="不再提示">✕</button>
+  </div>
+  <header>
+    <h1><span class="icon">🔥</span>暖气片销售利润计算器</h1>
+    <div class="formula">
+      组数 = 房间中片数 &gt; 0 的规格数 ｜ 阀门 = 组数 × 2 ｜ 每组一份材料 ｜ 赠送项不计报价、成本照计 ｜ 配送费统一 100 元，不在报价单明细中列示
+    </div>
+  </header>
+
+  <!-- 房间 × 规格 -->
+  <div class="card">
+    <h2>
+      <span class="dot"></span>房间明细（按所选品牌的中心距规格填片数）
+      <span class="spacer"></span>
+      <span class="pick">暖气片品牌：<select id="brandSel"></select></span>
+    </h2>
+    <div class="room-head" id="roomHead"></div>
+    <div id="roomList"></div>
+    <button class="btn-add" onclick="addRoom()">＋ 添加房间</button>
+    <div class="room-stats">
+      <span>房间数：<b id="stRooms">0</b></span>
+      <span>暖气片组数：<b id="stGroups">0</b> 组</span>
+      <span>总片数：<b id="stPieces">0</b> 片</span>
+      <span>阀门总数：<b id="stValves">0</b> 个</span>
+      <span class="specline">规格构成：<b id="stSpecLine">—</b></span>
+      <span class="mode-pick">
+        安装费计费：
+        <select id="installMode">
+          <option value="group">按每组</option>
+          <option value="room">按每个房间</option>
+        </select>
+      </span>
+    </div>
+  </div>
+
+  <!-- 报价单 -->
+  <div class="card">
+    <h2>
+      <span class="dot"></span>报价单
+      <span class="spacer"></span>
+      <button class="btn-detail" onclick="openResult()">📊 查看利润汇总</button>
+      <button class="btn-detail" onclick="openLib()">⚙ 价格库配置</button>
+    </h2>
+
+    <div class="quote-head">
+      <span class="qi">客户：<input type="text" id="qCustomer" placeholder="客户名称（选填）"></span>
+      <span class="qi">联系电话：<input type="text" id="qPhone" placeholder="选填"></span>
+      <span class="qi">日期：<input type="text" id="qDate" placeholder="YYYY-MM-DD"></span>
+      <span class="qi">楼层：<input type="number" id="qFloor" class="floor-in" min="0" step="1" placeholder="如 5" title="仅作工地信息记录：配送费为统一价，不随楼层变化；留空则不计配送费"><span class="unit-x">层</span></span>
+      <span class="spacer"></span>
+      <span class="no" id="qNo">DH-—</span>
+    </div>
+
+    <span class="swipe-tip">← 左右滑动查看完整报价单 →</span>
+    <div class="table-wrap">
+    <table class="items">
+      <colgroup>
+        <col style="width:12%">
+        <col style="width:20%">
+        <col style="width:7%">
+        <col style="width:35%">
+        <col style="width:26%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>项目</th>
+          <th>品牌 / 规格</th>
+          <th>赠送</th>
+          <th>数量</th>
+          <th>报价金额</th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+      <tfoot>
+        <tr>
+          <td class="label" colspan="4">报价合计</td>
+          <td class="num" id="tRevenue">—</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+    <div class="hint-bar">暖气片数量按中心距规格分别列出 · 勾选「赠送」后该项目不向客户收费，成本仍照计 · 带 <span class="qty-badge">自动</span> 数量由房间与规格推算 · <b>配送费为统一价 100 元，已计入报价合计与成本，不在上方明细中列示（楼层留空则不计费）</b> · 单位：元</div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="resetAll()">恢复示例</button>
+    </div>
+  </div>
+
+  <footer style="text-align:center;color:#a5aebc;font-size:12px;">配置与数据保存在本机浏览器（localStorage），不上传</footer>
+</div>
+
+<!-- 利润汇总弹窗 -->
+<div class="overlay" id="resultOverlay">
+  <div class="modal narrow">
+    <div class="m-head">
+      <h3>📊 利润汇总</h3>
+      <button class="close" onclick="closeResult()" title="关闭">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="result-grid">
+        <div class="stat"><div class="k">销售总额（报价合计）</div><div class="v dark" id="sRevenue">¥0.00</div></div>
+        <div class="stat"><div class="k">总成本</div><div class="v dark" id="sCost">¥0.00</div></div>
+        <div class="stat"><div class="k">配送费（统一价 · 已计入总额与成本）</div><div class="v dark" id="sDelivery" style="font-size:19px;">—</div></div>
+        <div class="stat"><div class="k">销售利润率</div><div class="v" id="sMargin">—</div></div>
+        <div class="stat total span2"><div class="k">净利润</div><div class="v green" id="sProfit">¥0.00</div></div>
+        <div class="stat wide"><div class="k">单号（DH + 日期 + C成本 + L利润）</div><div class="v" id="sNo">—</div></div>
+      </div>
+      <div class="gift-note" id="giftNote" style="display:none;"></div>
+      <div class="note-list">
+        <b>计算口径</b>：组数 = 房间中片数 &gt; 0 的规格数；阀门 = 组数 × 2；材料、安装 = 组数；暖气片按各规格片数分别计价；配送费为统一一口价（默认 100 元，不分楼层），已计入销售总额与总成本，但不在报价单明细中列示。
+      </div>
+    </div>
+    <div class="m-foot">
+      <span class="spacer"></span>
+      <button class="btn-primary" onclick="closeResult()">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 价格库配置弹出框 -->
+<div class="overlay" id="libOverlay">
+  <div class="modal">
+    <div class="m-head">
+      <h3>⚙ 价格库配置</h3>
+      <button class="close" onclick="closeLib()" title="关闭">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="tabs" id="libTabs"></div>
+      <div class="subtabs" id="brandTabs"></div>
+      <div class="lib-wrap">
+      <table class="lib">
+        <thead>
+          <tr>
+            <th style="width:38%" id="thName">名称</th>
+            <th style="width:22%">售价（向客户收）</th>
+            <th style="width:22%">进价（我方成本）</th>
+            <th style="width:10%">单位</th>
+            <th style="width:8%"></th>
+          </tr>
+        </thead>
+        <tbody id="libBody"></tbody>
+      </table>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-add" onclick="addEntry()" id="addEntryBtn">＋ 新增</button>
+      </div>
+    </div>
+    <div class="m-tip" id="mTip"></div>
+    <div class="m-foot">
+      <button class="btn-ghost" onclick="resetLib()">恢复默认价格库</button>
+      <span class="spacer"></span>
+      <button class="btn-ghost" onclick="closeLib()">取消</button>
+      <button class="btn-primary" onclick="saveLib()">保存并应用</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     PWA：清单注入 + Service Worker 注册 + 安装引导
+     —— 采用「单文件自包含」策略：
+        · manifest 用 Blob 动态注入，图标用内联 data URL 兜底，
+          这样即使脱离 icons/ 目录单独分发本文件，PWA 依然可用；
+        · Service Worker 用 Blob 动态注册（scope 为当前目录），
+          若浏览器限制 blob worker 则静默降级（仍可离线依赖浏览器缓存 / 仍可添加到桌面）。
+     ============================================================ */
+  const PWA = (() => {
+    const APP_NAME = "暖气片销售利润计算器";
+    const APP_SHORT = "暖气片利润";
+    const THEME = "#e0562e";
+    const CACHE = "radiator-profit-v10";
+    const SW_URL = "__sw__.js";
+
+    // 内联 SVG 图标（data URL，供 manifest 兜底 / 单独分发时使用）
+    const svgIcon = size => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">` +
+      `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+      `<stop offset="0" stop-color="#f0602e"/><stop offset="1" stop-color="#ba3418"/></linearGradient></defs>` +
+      `<rect width="512" height="512" fill="url(#g)"/>` +
+      `<g fill="#fff">` +
+      [0, 1, 2].map(g => {
+        const x = 116 + g * 100;
+        return `<rect x="${x}" y="154" width="76" height="17" rx="7"/>` +
+               `<rect x="${x}" y="341" width="76" height="17" rx="7"/>` +
+               `<rect x="${x}" y="154" width="17" height="204" rx="7"/>` +
+               `<rect x="${x + 29.5}" y="154" width="17" height="204" rx="7"/>` +
+               `<rect x="${x + 59}" y="154" width="17" height="204" rx="7"/>`;
+      }).join("") +
+      `</g></svg>`
+    );
+
+    // 图标：DOM 中若存在本地 PNG 直接用本地文件，否则用内联 SVG
+    function iconList() {
+      const local = document.querySelector('link[rel="icon"][sizes="192x192"]');
+      const hasLocal = local && /^https?:/.test(local.href) && !location.protocol.startsWith("blob");
+      const src512 = hasLocal ? new URL("icons/icon-512.png", local.href).href : svgIcon(512);
+      const src192 = hasLocal ? new URL("icons/icon-192.png", local.href).href : svgIcon(192);
+      return [
+        { src: src192, sizes: "192x192", type: hasLocal ? "image/png" : "image/svg+xml", purpose: "any" },
+        { src: src512, sizes: "512x512", type: hasLocal ? "image/png" : "image/svg+xml", purpose: "any" },
+        { src: src512, sizes: "512x512", type: hasLocal ? "image/png" : "image/svg+xml", purpose: "maskable" },
+      ];
+    }
+
+    // 是否运行在真实服务器上（file:// 直接双击打开时为 false）
+    const served = () => location.protocol === "http:" || location.protocol === "https:";
+
+    function injectManifest() {
+      const link = document.getElementById("pwaManifest");
+      if (!link) return;
+      // 服务器环境直接用同目录真实 manifest.json；blob: 形式的 manifest 在部分浏览器不生效
+      if (served()) { link.href = new URL("manifest.json", location.href).href; return; }
+      const manifest = {
+        name: APP_NAME, short_name: APP_SHORT,
+        description: "暖气片销售报价与利润核算工具，支持离线使用",
+        start_url: location.pathname + location.search,
+        scope: location.pathname.replace(/[^/]*$/, ""),
+        display: "standalone",
+        orientation: "portrait-primary",
+        background_color: "#f4f6f9",
+        theme_color: THEME,
+        lang: "zh-CN",
+        categories: ["business", "finance", "utilities"],
+        icons: iconList(),
+      };
+      try {
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+      } catch (e) {}
+    }
+
+    function registerSW() {
+      if (!("serviceWorker" in navigator)) return;
+      // Service Worker 只在安全上下文（https / localhost）下可注册；
+      // 局域网 http://192.168.x.x 属于非安全上下文，浏览器会拒绝注册，这里直接跳过避免报错。
+      if (!window.isSecureContext || !served()) return;
+      try {
+        navigator.serviceWorker.register(new URL("sw.js", location.href).href, { scope: "./" }).catch(() => {});
+      } catch (e) {}
+    }
+
+    // ---- 安装引导 ----
+    let deferred = null;
+    const bar = () => document.getElementById("installBar");
+    const KEY = "radiator_pwa_install_dismissed";
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(KEY) === "1"; } catch (e) {}
+
+    function showBar(hint, canInstall) {
+      if (dismissed || !bar()) return;
+      const btn = document.getElementById("installBtn");
+      const hintEl = document.getElementById("installHint");
+      if (hintEl && hint) hintEl.textContent = hint;
+      if (btn) btn.style.display = canInstall ? "" : "none";
+      bar().classList.add("show");
+    }
+
+    const media = q => (typeof window.matchMedia === "function" ? window.matchMedia(q) : { matches: false });
+    const isStandalone = () => media("(display-mode: standalone)").matches || navigator.standalone === true;
+
+    function bind() {
+      window.addEventListener("beforeinstallprompt", e => {
+        e.preventDefault();
+        deferred = e;
+        showBar("安装后可全屏使用、离线打开，数据仍保存在本机", true);
+      });
+      window.addEventListener("appinstalled", () => {
+        deferred = null;
+        try { localStorage.setItem(KEY, "1"); } catch (e) {}
+        if (bar()) bar().classList.remove("show");
+      });
+      const ib = document.getElementById("installBtn");
+      if (ib) ib.addEventListener("click", async () => {
+        if (!deferred) return;
+        deferred.prompt();
+        try { await deferred.userChoice; } catch (e) {}
+        deferred = null;
+        if (bar()) bar().classList.remove("show");
+      });
+      const ic = document.getElementById("installClose");
+      if (ic) ic.addEventListener("click", () => {
+        dismissed = true;
+        try { localStorage.setItem(KEY, "1"); } catch (e) {}
+        if (bar()) bar().classList.remove("show");
+      });
+
+      // iOS Safari 无 beforeinstallprompt，给出「添加到主屏幕」图文指引
+      const ua = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Macintosh") && "ontouchend" in document);
+      if (isStandalone()) return;
+      if (isIOS) {
+        showBar("Safari 中点「分享」→「添加到主屏幕」，即可像 App 一样全屏使用", false);
+      } else if (served() && !window.isSecureContext) {
+        // 局域网 http 等非安全上下文：可正常查看，但浏览器不允许注册 Service Worker、不能安装
+        showBar("当前是 http 访问，页面可正常查看；安装到桌面并离线使用需改用 https 链接", false);
+      }
+    }
+
+    function init() {
+      injectManifest();
+      registerSW();
+      bind();
+      // 标记已启动 PWA 环境，便于样式微调
+      if (isStandalone()) document.documentElement.classList.add("standalone");
+    }
+
+    return { init, APP_NAME, APP_SHORT };
+  })();
+  // 内联脚本位于文档末尾，此时 DOM 已就绪；仍保留 loading 兜底
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", PWA.init, { once: true });
+  } else {
+    PWA.init();
+  }
+
+  /* ============ 分类与数量规则 ============ */
+  // hidden:true → 不在报价单表格中列示，但仍参与销售额 / 成本 / 利润与单号计算
+  const CATS = [
+    { key: "radiator", name: "暖气片", unit: "片", mode: "pieces"  },
+    { key: "pipe",     name: "管子",   unit: "米", mode: "manual"  },
+    { key: "valve",    name: "阀门",   unit: "个", mode: "valves"  }, // 组数 × 2
+    { key: "material", name: "材料",   unit: "组", mode: "groups"  }, // 组数
+    { key: "drill",    name: "打孔",   unit: "个", mode: "manual"  },
+    { key: "install",  name: "安装",   unit: "组", mode: "install" }, // 组数 / 房间数
+    { key: "delivery", name: "配送费", unit: "次", mode: "flat", hidden: true }, // 统一一口价，不随楼层变化
+  ];
+  // 报价单表格中可见的分类（配送费不列示）
+  const VIS = CATS.filter(c => !c.hidden);
+
+  /* 配送费：统一一口价（不分楼层）。楼层留空视为本次无配送，不计入 */
+  function calcDelivery() {
+    if (!(floor > 0)) return { income: 0, cost: 0, entry: null };
+    const e = (LIB.delivery || [])[0];
+    if (!e) return { income: 0, cost: 0, entry: null };
+    return { income: +e.price || 0, cost: +e.cost || 0, entry: e };
+  }
+
+  function defaultLib() {
+    return {
+      radiator: [
+        { name: "太阳花", specs: [
+          { name: "600mm",  price: 120, cost: 75  },
+          { name: "1600mm", price: 180, cost: 110 },
+          { name: "1800mm", price: 200, cost: 125 },
+        ]},
+        { name: "圣劳伦斯", specs: [
+          { name: "600mm",  price: 150, cost: 92  },
+          { name: "1600mm", price: 210, cost: 130 },
+          { name: "1800mm", price: 240, cost: 150 },
+        ]},
+        { name: "森德", specs: [
+          { name: "600mm",  price: 190, cost: 120 },
+          { name: "1600mm", price: 260, cost: 165 },
+          { name: "1800mm", price: 300, cost: 190 },
+        ]},
+      ],
+      pipe:     [{ name: "PPR 热熔管", price: 30, cost: 12 }, { name: "铝塑管", price: 25, cost: 10 }],
+      valve:    [{ name: "普通铜阀", price: 45, cost: 20 }, { name: "温控阀", price: 85, cost: 45 }],
+      material: [{ name: "标准辅材包", price: 200, cost: 90 }, { name: "升级辅材包", price: 320, cost: 150 }],
+      drill:    [{ name: "普通打孔", price: 30, cost: 8 }, { name: "承重墙打孔", price: 60, cost: 20 }],
+      install:  [{ name: "标准安装", price: 80, cost: 50 }, { name: "加急安装", price: 120, cost: 70 }],
+      // 配送费：统一一口价（不分楼层），可在价格库中修改
+      delivery: [{ name: "配送费（统一价）", price: 100, cost: 60 }],
+    };
+  }
+  function defaultRooms() {
+    return [
+      { name: "客厅", pieces: [6, 0, 2] },
+      { name: "主卧", pieces: [5, 1, 0] },
+      { name: "次卧", pieces: [5, 0, 0] },
+    ];
+  }
+  const DEFAULT_SEL = { brand: 0, pipe: 0, valve: 0, material: 0, drill: 0, install: 0 };
+  const DEFAULT_MANUAL_QTY = { pipe: 80, drill: 6 };
+  const DEFAULT_GIFT = { radiator: false, pipe: false, valve: false, material: false, drill: false, install: false };
+
+  const STORE_KEY = "radiator_profit_lib_v9";
+  let LIB = defaultLib();
+  let SEL = Object.assign({}, DEFAULT_SEL);
+  let MANUAL_QTY = Object.assign({}, DEFAULT_MANUAL_QTY);
+  let GIFT = Object.assign({}, DEFAULT_GIFT);
+  let rooms = defaultRooms();
+  let installMode = "group";
+  let floor = 1;                    // 楼层（仅作记录：填了才计配送费，金额与楼层无关）
+  let quote = { customer: "", phone: "", date: "" };
+  let lastNo = "";
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (saved && saved.lib) {
+      CATS.forEach(c => {
+        if (c.key === "radiator") {
+          if (Array.isArray(saved.lib.radiator)) {
+            LIB.radiator = saved.lib.radiator.map(b => ({
+              name: b.name,
+              specs: Array.isArray(b.specs) ? b.specs.map(s => ({ name: s.name, price: +s.price || 0, cost: +s.cost || 0 })) : []
+            }));
+          }
+        } else if (Array.isArray(saved.lib[c.key])) {
+          LIB[c.key] = saved.lib[c.key].map(e => ({ name: e.name, price: +e.price || 0, cost: +e.cost || 0 }));
+        }
+      });
+      if (saved.sel) SEL = Object.assign(SEL, saved.sel);
+      if (saved.manualQty) MANUAL_QTY = Object.assign(MANUAL_QTY, saved.manualQty);
+      if (saved.gift) GIFT = Object.assign(GIFT, saved.gift);
+      if (saved.installMode) installMode = saved.installMode;
+      if (typeof saved.floor === "number") floor = saved.floor;
+      if (Array.isArray(saved.rooms)) rooms = saved.rooms.map(r => ({ name: r.name, pieces: Array.isArray(r.pieces) ? r.pieces : [] }));
+      if (saved.quote) quote = Object.assign(quote, saved.quote);
+    }
+  } catch (e) {}
+
+  const fmt = v => "¥" + v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // 单号用金额：取整且不加千分位分隔符
+  const fmtInt = v => String(Math.round(v));
+  const $ = id => document.getElementById(id);
+  const num = el => { const v = parseFloat(el.value); return isNaN(v) ? 0 : v; };
+  const clamp = (v, len) => (typeof v !== "number" || isNaN(v) || v < 0 || v >= len) ? 0 : v;
+  const brands = () => (LIB.radiator || []);
+  const curBrand = () => brands()[clamp(SEL.brand, brands().length)] || null;
+  const curSpecs = () => { const b = curBrand(); return b ? (b.specs || []) : []; };
+
+  /* ============ 单号：DH + 日期 + C成本 + L利润 ============ */
+  function yyyymmdd(str) {
+    const m = (str || "").match(/(\d{4})\D?(\d{2})\D?(\d{2})/);
+    if (m) return m[1] + m[2] + m[3];
+    const d = new Date();
+    const p = n => String(n).padStart(2, "0");
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+  }
+  function buildNo(cost, profit) {
+    const pStr = profit < 0 ? "L-" + fmtInt(Math.abs(profit)) : "L" + fmtInt(profit);
+    return "DH" + yyyymmdd(quote.date) + "C" + fmtInt(cost) + pStr;
+  }
+
+  /* ============ 报价单抬头 ============ */
+  function todayStr() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function initQuoteHead() {
+    if (!quote.date) quote.date = todayStr();
+    $("qCustomer").value = quote.customer || "";
+    $("qPhone").value = quote.phone || "";
+    $("qDate").value = quote.date;
+    $("qFloor").value = floor > 0 ? floor : "";
+    ["qCustomer", "qPhone", "qDate"].forEach(id => {
+      $(id).addEventListener("input", () => {
+        quote.customer = $("qCustomer").value;
+        quote.phone = $("qPhone").value;
+        quote.date = $("qDate").value;
+        calc(); saveStore();
+      });
+    });
+    $("qFloor").addEventListener("input", () => {
+      const v = parseInt($("qFloor").value, 10);
+      floor = (isNaN(v) || v < 0) ? 0 : v;
+      calc(); saveStore();
+    });
+  }
+
+  /* ============ 品牌下拉 ============ */
+  function refreshBrandSel() {
+    const sel = $("brandSel");
+    sel.innerHTML = "";
+    const bs = brands();
+    if (bs.length === 0) {
+      const o = document.createElement("option");
+      o.value = -1; o.textContent = "未配置品牌";
+      sel.appendChild(o);
+      return;
+    }
+    bs.forEach((b, i) => {
+      const o = document.createElement("option");
+      o.value = i; o.textContent = b.name;
+      sel.appendChild(o);
+    });
+    SEL.brand = clamp(SEL.brand, bs.length);
+    sel.value = SEL.brand;
+  }
+  $("brandSel").addEventListener("change", e => {
+    const idx = parseInt(e.target.value, 10);
+    if (idx < 0) return;
+    const oldNames = curSpecs().map(s => s.name);
+    SEL.brand = idx;
+    migrateRooms(oldNames, curSpecs().map(s => s.name));
+    renderRooms(); calc(); saveStore();
+  });
+  function migrateRooms(oldNames, newNames) {
+    rooms.forEach(r => {
+      const np = new Array(newNames.length).fill(0);
+      (r.pieces || []).forEach((v, i) => {
+        const j = newNames.indexOf(oldNames[i]);
+        if (j >= 0) np[j] += parseFloat(v) || 0;
+      });
+      r.pieces = np;
+    });
+  }
+
+  /* ============ 房间 × 规格 ============ */
+  const roomList = $("roomList");
+  function renderRooms() {
+    const specs = curSpecs();
+    let head = '<div class="c-name">房间名称</div>';
+    specs.forEach(s => { head += `<div class="c-spec">${s.name}</div>`; });
+    head += '<div class="c-grp">组数</div><div class="c-sum">该房间报价</div><div class="c-del"></div>';
+    $("roomHead").innerHTML = head;
+
+    roomList.innerHTML = "";
+    rooms.forEach((r, i) => {
+      const div = document.createElement("div");
+      div.className = "room-row";
+      let html = `<div class="c-name"><input type="text" placeholder="房间名称" data-r="${i}" data-f="name" value="${String(r.name).replace(/"/g, "&quot;")}"></div>`;
+      specs.forEach((s, si) => {
+        // .spec-label 仅在手机端显示（桌面端由表头承载规格名）
+        html += `<div class="c-spec"><span class="spec-label">${s.name}</span><input type="number" min="0" step="1" data-r="${i}" data-s="${si}" placeholder="0"><span class="u">片</span></div>`;
+      });
+      html += `<div class="c-grp" id="rgrp-${i}">0</div>
+               <div class="c-sum" id="rsum-${i}">—</div>
+               <div class="c-del"><button class="del" title="删除房间" onclick="delRoom(${i})">✕</button></div>`;
+      div.innerHTML = html;
+      roomList.appendChild(div);
+      specs.forEach((s, si) => {
+        const inp = div.querySelector(`input[data-r="${i}"][data-s="${si}"]`);
+        const v = r.pieces[si];
+        inp.value = (v === undefined || v === null || v === "") ? "" : v;
+      });
+    });
+    if (rooms.length === 0) {
+      roomList.innerHTML = '<div class="hint-bar" style="text-align:left;">暂无房间，请点击「添加房间」</div>';
+    }
+  }
+  function addRoom() {
+    rooms.push({ name: "房间" + (rooms.length + 1), pieces: new Array(curSpecs().length).fill("") });
+    renderRooms(); calc(); saveStore();
+  }
+  function delRoom(i) { rooms.splice(i, 1); renderRooms(); calc(); saveStore(); }
+  roomList.addEventListener("input", e => {
+    const t = e.target;
+    if (!t.dataset || t.dataset.r === undefined) return;
+    const ri = parseInt(t.dataset.r, 10);
+    if (t.dataset.f === "name") rooms[ri].name = t.value;
+    else if (t.dataset.s !== undefined) {
+      rooms[ri].pieces[parseInt(t.dataset.s, 10)] = t.value === "" ? "" : (parseFloat(t.value) || 0);
+    }
+    calc(); saveStore();
+  });
+
+  $("installMode").value = installMode;
+  $("installMode").addEventListener("change", e => { installMode = e.target.value; calc(); saveStore(); });
+
+  /* ============ 报价单表格 ============ */
+  const itemsBody = $("itemsBody");
+  function renderItems() {
+    itemsBody.innerHTML = "";
+    VIS.forEach((c, i) => {              // 配送费（hidden）不列入报价单
+      const tr = document.createElement("tr");
+      const auto = c.mode !== "manual";
+      const second = c.key === "radiator"
+        ? `<span class="brand-chip none" id="brandTag">—</span>`
+        : `<select data-k="${c.key}"></select>`;
+
+      let qtyCell;
+      if (c.key === "radiator") {
+        qtyCell = `<span class="spec-qty none" id="qty-radiator">—</span>`;
+      } else if (auto) {
+        const note = c.mode === "valves" ? '<span class="qty-note">组数 × 2</span>'
+                   : c.mode === "groups" ? '<span class="qty-note">= 组数</span>'
+                   : c.mode === "install" ? '<span class="qty-note" id="instNote">= 组数</span>' : '';
+        qtyCell = `<div class="cell-input"><input type="number" class="auto-qty" data-k="${c.key}" data-f="qty" value="0" readonly title="数量自动推算"><span class="qty-unit">${c.unit}</span>${note}</div>`;
+      } else {
+        qtyCell = `<div class="cell-input"><input type="number" min="0" step="1" data-k="${c.key}" data-f="qty" value="${MANUAL_QTY[c.key] || 0}"><span class="qty-unit">${c.unit}</span></div>`;
+      }
+
+      tr.innerHTML = `
+        <td class="name">${c.name}<span class="tag">（${c.unit}）</span></td>
+        <td>${second}</td>
+        <td><input type="checkbox" class="gift-chk" data-k="${c.key}" title="勾选后该项目赠送给客户，不计报价"></td>
+        <td>${qtyCell}</td>
+        <td class="num income" id="inc-${i}">—</td>`;
+      itemsBody.appendChild(tr);
+      const chk = tr.querySelector(".gift-chk");
+      chk.checked = !!GIFT[c.key];
+      if (GIFT[c.key]) tr.classList.add("gift");
+    });
+    refreshSelects();
+  }
+
+  function refreshSelects() {
+    VIS.forEach(c => {
+      if (c.key === "radiator") return;
+      const sel = itemsBody.querySelector(`select[data-k="${c.key}"]`);
+      if (!sel) return;
+      const list = LIB[c.key] || [];
+      sel.innerHTML = "";
+      if (list.length === 0) {
+        const o = document.createElement("option");
+        o.value = -1; o.textContent = "未配置（点右上角配置）";
+        sel.appendChild(o); sel.classList.add("empty");
+      } else {
+        sel.classList.remove("empty");
+        list.forEach((en, idx) => {
+          const o = document.createElement("option");
+          o.value = idx; o.textContent = en.name;
+          sel.appendChild(o);
+        });
+        SEL[c.key] = clamp(SEL[c.key], list.length);
+        sel.value = SEL[c.key];
+      }
+    });
+  }
+
+  itemsBody.addEventListener("change", e => {
+    const t = e.target;
+    if (t.tagName === "SELECT") { SEL[t.dataset.k] = parseInt(t.value, 10); calc(); saveStore(); }
+    else if (t.classList.contains("gift-chk")) {
+      GIFT[t.dataset.k] = t.checked;
+      t.closest("tr").classList.toggle("gift", t.checked);
+      calc(); saveStore();
+    }
+  });
+  itemsBody.addEventListener("input", e => {
+    const t = e.target;
+    if (t.tagName === "INPUT" && t.dataset.f === "qty" && t.dataset.k) {
+      MANUAL_QTY[t.dataset.k] = num(t); calc(); saveStore();
+    }
+  });
+
+  /* ============ 计算 ============ */
+  function calc() {
+    const specs = curSpecs();
+    const brand = curBrand();
+    const roomCount = rooms.length;
+    const radGift = !!GIFT.radiator;
+
+    let totalGroups = 0, totalPieces = 0, radIncome = 0, radCost = 0;
+    const specTot = new Array(specs.length).fill(0);
+
+    rooms.forEach((r, i) => {
+      let g = 0, sum = 0;
+      specs.forEach((s, si) => {
+        const p = parseFloat(r.pieces[si]) || 0;
+        if (p > 0) g += 1;
+        specTot[si] += p;
+        sum += p * s.price;
+      });
+      totalGroups += g;
+      const gEl = $("rgrp-" + i); if (gEl) gEl.textContent = g;
+      const sEl = $("rsum-" + i); if (sEl) sEl.textContent = radGift ? "赠送" : fmt(sum);
+    });
+    specs.forEach((s, si) => {
+      radIncome += specTot[si] * s.price;
+      radCost += specTot[si] * s.cost;
+      totalPieces += specTot[si];
+    });
+
+    $("stRooms").textContent = roomCount;
+    $("stGroups").textContent = totalGroups;
+    $("stPieces").textContent = totalPieces;
+    $("stValves").textContent = totalGroups * 2;
+    $("stSpecLine").innerHTML = specLineHTML(specTot) || "—";
+
+    const bt = $("brandTag");
+    bt.textContent = brand ? brand.name : "未配置品牌";
+    bt.className = "brand-chip" + (brand ? "" : " none");
+
+    const qd = $("qty-radiator");
+    const line = specLineHTML(specTot);
+    if (line) {
+      qd.innerHTML = line + `<span class="total">合计 ${totalPieces} 片 · ${totalGroups} 组</span>`;
+      qd.className = "spec-qty";
+    } else {
+      qd.innerHTML = "未填写片数";
+      qd.className = "spec-qty none";
+    }
+
+    const instNote = $("instNote");
+    if (instNote) instNote.textContent = installMode === "group" ? "= 组数" : "= 房间数";
+
+    let totalRevenue = 0, totalCost = 0, giftValue = 0;
+    VIS.forEach((c, i) => {
+      let rawIncome, cst;
+      if (c.key === "radiator") {
+        rawIncome = radIncome; cst = radCost;
+      } else {
+        const entry = (LIB[c.key] || [])[SEL[c.key]];
+        const price = entry ? entry.price : 0;
+        const cost = entry ? entry.cost : 0;
+        let qty;
+        if (c.mode === "manual") qty = MANUAL_QTY[c.key] || 0;
+        else {
+          if (c.mode === "valves") qty = totalGroups * 2;
+          else if (c.mode === "groups") qty = totalGroups;
+          else if (c.mode === "install") qty = (installMode === "group" ? totalGroups : roomCount);
+          else qty = 0;
+          const q = itemsBody.querySelector(`input[data-k="${c.key}"][data-f="qty"]`);
+          if (q) q.value = qty;
+        }
+        rawIncome = price * qty; cst = cost * qty;
+      }
+
+      const isGift = !!GIFT[c.key];
+      const income = isGift ? 0 : rawIncome;
+      if (isGift) giftValue += rawIncome;
+      totalRevenue += income; totalCost += cst;
+
+      const incCell = $("inc-" + i);
+      incCell.innerHTML = isGift
+        ? `<span class="gift-tag">赠送</span><span class="strike">${fmt(rawIncome)}</span>`
+        : fmt(income);
+    });
+
+    // ---- 配送费：统一一口价，不出现在报价单表格中，但计入销售总额 / 总成本 / 利润 / 单号 ----
+    const dv = calcDelivery();
+    totalRevenue += dv.income;
+    totalCost += dv.cost;
+
+    const profit = totalRevenue - totalCost;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+    // 单号
+    lastNo = buildNo(totalCost, profit);
+    $("qNo").innerHTML = lastNo + '<span class="en">单号</span>';
+
+    // 表尾
+    $("tRevenue").textContent = fmt(totalRevenue);
+
+    // 汇总弹窗内数据
+    $("sRevenue").textContent = fmt(totalRevenue);
+    $("sCost").textContent = fmt(totalCost);
+    const m = $("sMargin");
+    m.textContent = totalRevenue > 0 ? margin.toFixed(1) + "%" : "—";
+    m.className = "v " + (margin >= 0 ? "green" : "red");
+    const sp2 = $("sProfit");
+    sp2.textContent = fmt(profit);
+    sp2.className = "v " + (profit >= 0 ? "green" : "red");
+    $("sNo").textContent = lastNo;
+
+    // 配送费在报价单中不列示，此处供内部核对
+    const sd = $("sDelivery");
+    if (dv.entry) {
+      sd.textContent = fmt(dv.income) + "（统一价 · 不分楼层）";
+      sd.className = "v dark";
+    } else {
+      sd.textContent = "未填楼层（不计）";
+      sd.className = "v dark";
+    }
+
+    const gn = $("giftNote");
+    if (giftValue > 0) {
+      gn.style.display = "block";
+      gn.textContent = "赠送让利：原价合计 " + fmt(giftValue) + "（已赠送给客户，未计入报价，但成本仍计入）";
+    } else {
+      gn.style.display = "none";
+    }
+  }
+
+  function specLineHTML(tot) {
+    const parts = [];
+    curSpecs().forEach((s, si) => {
+      const n = tot[si] || 0;
+      if (n > 0) parts.push(`<span class="seg">${s.name} × <b>${n}</b> 片</span>`);
+    });
+    return parts.join('<span class="plus">+</span>');
+  }
+
+  /* ============ 汇总弹窗 ============ */
+  function openResult() { $("resultOverlay").classList.add("show"); }
+  function closeResult() { $("resultOverlay").classList.remove("show"); }
+  $("resultOverlay").addEventListener("mousedown", e => { if (e.target === $("resultOverlay")) closeResult(); });
+
+  /* ============ 价格库弹出框 ============ */
+  let draft = null, curCat = "radiator", curBrandIdx = 0, oldSnap = null;
+
+  function openLib() {
+    draft = JSON.parse(JSON.stringify(LIB));
+    curCat = "radiator";
+    curBrandIdx = clamp(SEL.brand, (draft.radiator || []).length);
+    const bi = clamp(SEL.brand, brands().length);
+    const ob = brands()[bi];
+    // 记录索引（改名也能正确定位）+ 旧名（删除时的兜底）+ 旧规格名（用于迁移已填片数）
+    oldSnap = {
+      brandIdx: bi,
+      brandName: ob ? ob.name : "",
+      specNames: ob ? (ob.specs || []).map(s => s.name) : []
+    };
+    renderTabs(); renderBrandTabs(); renderLibRows();
+    $("libOverlay").classList.add("show");
+  }
+  function closeLib() { $("libOverlay").classList.remove("show"); draft = null; oldSnap = null; }
+
+  function renderTabs() {
+    const box = $("libTabs");
+    box.innerHTML = "";
+    CATS.forEach(c => {
+      const b = document.createElement("button");
+      b.className = "tab" + (c.key === curCat ? " active" : "");
+      b.textContent = c.name;
+      b.onclick = () => { curCat = c.key; renderTabs(); renderBrandTabs(); renderLibRows(); };
+      box.appendChild(b);
+    });
+  }
+  function renderBrandTabs() {
+    const box = $("brandTabs");
+    box.innerHTML = "";
+    if (curCat !== "radiator") { box.style.display = "none"; return; }
+    box.style.display = "flex";
+    const bs = draft.radiator || [];
+    bs.forEach((b, i) => {
+      const s = document.createElement("span");
+      s.className = "subtab" + (i === curBrandIdx ? " active" : "");
+      s.dataset.bi = i;
+      // 品牌名输入框：全程不重建 DOM（编辑与切换品牌只改样式 / 重绘下方表格），保证输入不中断
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.value = b.name;
+      inp.dataset.bi = i;
+      inp.placeholder = "品牌名";
+      inp.title = "可直接输入修改品牌名称";
+      s.appendChild(inp);
+      if (bs.length > 1) {
+        const x = document.createElement("span");
+        x.className = "x";
+        x.textContent = "✕";
+        x.title = "删除品牌";
+        x.onclick = ev => { ev.stopPropagation(); delBrand(i); };
+        s.appendChild(x);
+      }
+      box.appendChild(s);
+    });
+    const add = document.createElement("span");
+    add.className = "subtab add";
+    add.textContent = "＋ 新增品牌";
+    add.title = "新增一个品牌（新增后可直接编辑品牌名）";
+    add.onclick = addBrand;
+    box.appendChild(add);
+    const tip = document.createElement("span");
+    tip.className = "hint-inline";
+    tip.textContent = "（点击品牌名可直接修改，回车/失焦即生效）";
+    box.appendChild(tip);
+  }
+  /* 品牌区事件委托：输入改名不重渲染；聚焦切换品牌只改 active 样式 + 重绘下方表格 */
+  function markActiveBrand(i) {
+    const box = $("brandTabs");
+    Array.from(box.children).forEach(el => {
+      if (!el.classList || !el.classList.contains("subtab") || el.classList.contains("add")) return;
+      if (el.dataset.bi === undefined) return;
+      el.classList.toggle("active", parseInt(el.dataset.bi, 10) === i);
+    });
+  }
+  $("brandTabs").addEventListener("input", e => {
+    const t = e.target;
+    if (!t.dataset || t.dataset.bi === undefined || !draft) return;
+    const b = (draft.radiator || [])[parseInt(t.dataset.bi, 10)];
+    if (b) b.name = t.value;               // 直接写入草稿，不重建 DOM，输入可连续进行
+  });
+  $("brandTabs").addEventListener("focusin", e => {
+    const t = e.target;
+    if (!t.dataset || t.dataset.bi === undefined || !draft) return;
+    const i = parseInt(t.dataset.bi, 10);
+    if (i === curBrandIdx) return;
+    curBrandIdx = i;
+    markActiveBrand(i);                    // 仅切换高亮，输入框保持聚焦
+    renderLibRows();                       // 下方规格表跟随切换
+  });
+  $("brandTabs").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+  });
+  function renderLibRows() {
+    const cat = CATS.find(c => c.key === curCat);
+    const isRad = curCat === "radiator";
+    const isDel = curCat === "delivery";
+    $("thName").textContent = isRad ? "中心距规格名称" : "品牌 / 规格名称";
+    $("addEntryBtn").textContent = isRad ? "＋ 新增规格" : "＋ 新增品牌 / 规格";
+    $("mTip").textContent = isRad
+      ? "暖气片按「品牌 → 中心距规格」两级配置：上方品牌标签可直接点击改名，用「＋ 新增品牌」增加品牌，再为该品牌下的每个规格设定售价与进价（元/片）。房间中每填一种规格即算一组。"
+      : isDel
+        ? "配送费为统一一口价（默认 100 元），不随楼层变化，取本分类第 1 条记录计价。配送费不在报价单明细中列示，但会计入销售总额、总成本、利润与单号；报价单抬头「楼层」留空则不计费。"
+        : "提示：名称、售价、进价均可自由修改；切换分类可分别为管子、阀门、材料、打孔、安装设置不同品牌与价格。";
+
+    const body = $("libBody");
+    body.innerHTML = "";
+    let list = [];
+    if (isRad) {
+      curBrandIdx = clamp(curBrandIdx, (draft.radiator || []).length);
+      const b = (draft.radiator || [])[curBrandIdx];
+      if (!b) {
+        body.innerHTML = '<tr><td colspan="5" class="hint-bar" style="text-align:left;padding:12px 0;">暂无品牌，请点击「＋ 品牌」添加</td></tr>';
+        return;
+      }
+      list = b.specs || [];
+    } else {
+      list = draft[curCat] || [];
+    }
+    list.forEach((en, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="text" data-i="${idx}" data-f="name" value="${String(en.name).replace(/"/g, "&quot;")}" placeholder="${isRad ? "如 600mm" : "品牌 / 规格名称"}"></td>
+        <td><input type="number" class="num-in" min="0" step="0.01" data-i="${idx}" data-f="price" value="${en.price}"></td>
+        <td><input type="number" class="num-in" min="0" step="0.01" data-i="${idx}" data-f="cost" value="${en.cost}"></td>
+        <td class="unit">元 / ${cat.unit}</td>
+        <td><button class="del" title="删除" onclick="delEntry(${idx})">✕</button></td>`;
+      body.appendChild(tr);
+    });
+    if (list.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" class="hint-bar" style="text-align:left;padding:12px 0;">该分类暂无条目，请点击上方「新增」</td></tr>';
+    }
+  }
+  function currentList() {
+    if (curCat === "radiator") {
+      const b = (draft.radiator || [])[curBrandIdx];
+      return b ? (b.specs || []) : null;
+    }
+    return draft[curCat] || [];
+  }
+  $("libBody").addEventListener("input", e => {
+    const t = e.target;
+    if (!t.dataset || t.dataset.i === undefined) return;
+    const list = currentList();
+    if (!list) return;
+    const en = list[parseInt(t.dataset.i, 10)];
+    if (!en) return;
+    if (t.dataset.f === "name") en.name = t.value;
+    else en[t.dataset.f] = num(t);
+  });
+  function addEntry() {
+    const list = currentList();
+    if (!list) return;
+    list.push({ name: curCat === "radiator" ? "新增规格" : "新增规格 " + (list.length + 1), price: 0, cost: 0 });
+    renderLibRows();
+  }
+  function delEntry(idx) { const l = currentList(); if (!l) return; l.splice(idx, 1); renderLibRows(); }
+  function addBrand() {
+    if (!Array.isArray(draft.radiator)) draft.radiator = [];
+    draft.radiator.push({ name: "新品牌 " + (draft.radiator.length + 1), specs: [{ name: "600mm", price: 0, cost: 0 }] });
+    curBrandIdx = draft.radiator.length - 1;
+    renderBrandTabs(); renderLibRows();
+  }
+  function delBrand(idx) {
+    if (!Array.isArray(draft.radiator) || draft.radiator.length <= 1) return;
+    draft.radiator.splice(idx, 1);
+    curBrandIdx = clamp(curBrandIdx, draft.radiator.length);
+    renderBrandTabs(); renderLibRows();
+  }
+  function resetLib() { draft = defaultLib(); curBrandIdx = 0; renderBrandTabs(); renderLibRows(); }
+
+  function saveLib() {
+    LIB = JSON.parse(JSON.stringify(draft));
+    CATS.forEach(c => {
+      if (c.key === "radiator") {
+        if (!Array.isArray(LIB.radiator)) LIB.radiator = [];
+        LIB.radiator.forEach(b => { if (!Array.isArray(b.specs)) b.specs = []; });
+      } else {
+        if (!Array.isArray(LIB[c.key])) LIB[c.key] = [];
+        SEL[c.key] = clamp(SEL[c.key], LIB[c.key].length);
+      }
+    });
+    const bs = brands();
+    // 优先按原索引定位（支持品牌改名），索引失效时再按名称兜底
+    let nb = (typeof oldSnap.brandIdx === "number" && oldSnap.brandIdx >= 0 && oldSnap.brandIdx < bs.length)
+      ? oldSnap.brandIdx
+      : bs.findIndex(b => b.name === oldSnap.brandName);
+    if (nb < 0) nb = 0;
+    SEL.brand = nb;
+    migrateRooms(oldSnap.specNames, (bs[nb] ? bs[nb].specs : []).map(s => s.name));
+    oldSnap = null;
+    refreshBrandSel(); renderRooms(); refreshSelects(); calc(); saveStore(); closeLib();
+  }
+  $("libOverlay").addEventListener("mousedown", e => { if (e.target === $("libOverlay")) closeLib(); });
+
+  /* ============ 存储 / 重置 ============ */
+  function saveStore() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        lib: LIB, sel: SEL, manualQty: MANUAL_QTY, gift: GIFT,
+        rooms: rooms, installMode: installMode, quote: quote, floor: floor
+      }));
+    } catch (e) {}
+  }
+  function resetAll() {
+    rooms = defaultRooms();
+    LIB = defaultLib();
+    SEL = Object.assign({}, DEFAULT_SEL);
+    MANUAL_QTY = Object.assign({}, DEFAULT_MANUAL_QTY);
+    GIFT = Object.assign({}, DEFAULT_GIFT);
+    installMode = "group";
+    floor = 1;
+    $("installMode").value = installMode;
+    $("qFloor").value = floor;
+    VIS.forEach(c => {
+      const chk = itemsBody.querySelector(`.gift-chk[data-k="${c.key}"]`);
+      if (chk) { chk.checked = false; chk.closest("tr").classList.remove("gift"); }
+      if (c.mode === "manual") {
+        const q = itemsBody.querySelector(`input[data-k="${c.key}"][data-f="qty"]`);
+        if (q) q.value = MANUAL_QTY[c.key] || 0;
+      }
+    });
+    refreshBrandSel(); renderRooms(); refreshSelects(); calc(); saveStore();
+  }
+
+  initQuoteHead();
+  refreshBrandSel();
+  renderRooms();
+  renderItems();
+  calc();
+</script>
+</body>
+</html>

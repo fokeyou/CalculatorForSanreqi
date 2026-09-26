@@ -1,0 +1,21 @@
+{
+  "name": "radiator-profit",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "暖气片销售利润计算器（Vue 版）：按房间×规格填片数，自动推算组数、阀门、材料与安装，含价格库管理与报价单后台",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node serve.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.2.11"
+  }
+}
