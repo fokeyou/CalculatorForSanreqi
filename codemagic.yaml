@@ -28,10 +28,18 @@ workflows:
           include: true
 
     scripts:
-      - name: 构建前端 + 同步 iOS
+      - name: 环境检查 + 安装依赖
         script: |
-          npm ci
+          echo "node: $(node -v) | npm: $(npm -v)"
+          npm ci || (echo "npm ci 失败，回退 npm install" && npm install)
+
+      - name: 构建前端
+        script: |
           npm run build
+          ls -la dist
+
+      - name: 同步 iOS 平台
+        script: |
           if [ ! -d "ios" ]; then npx cap add ios; fi
           npx cap sync ios
 
