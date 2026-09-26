@@ -65,10 +65,29 @@ fi
 
 echo "==> [4/4] 打包未签名 ipa（供 TrollStore 自签）"
 cd /tmp/App.xcarchive/Products/Applications
+echo "archive 产物："; ls -la
+APP_PATH="$APP_SCHEME.app"
+if [ ! -d "$APP_PATH" ]; then
+  # scheme 名不是 App 时兜底取实际的 .app
+  APP_PATH=$(find . -maxdepth 1 -name "*.app" | head -n1)
+fi
+echo "打包目标：$APP_PATH"
+
+# 关键：ipa 必须是 Payload/<App>.app 的两层结构。
+# 若写成 ( cd Payload && zip ... . )，zip 根目录会直接是 App.app，
+# 缺少 Payload/ 这层会导致 TrollStore 报「解析错误」（找不到 Payload/*.app）。
 rm -rf Payload
+rm -f "$EXPORT_IPA"
 mkdir Payload
-cp -R "$APP_SCHEME.app" Payload/
-( cd Payload && zip -r -X "$EXPORT_IPA" . )
+cp -R "$APP_PATH" Payload/
+zip -r -X -y "$EXPORT_IPA" Payload
+
+echo "==> 校验 ipa 结构（必须出现 Payload/ 开头）"
+unzip -l "$EXPORT_IPA" | head -5
+if ! unzip -l "$EXPORT_IPA" | grep -q "Payload/.*\.app/"; then
+  echo "❌ ipa 结构不正确：未找到 Payload/*.app"
+  exit 1
+fi
 
 echo "==> 完成："
 echo "    $EXPORT_IPA"
