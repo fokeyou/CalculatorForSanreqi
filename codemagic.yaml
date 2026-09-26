@@ -17,8 +17,9 @@ workflows:
 
     environment:
       node: "20"
-      # 如 Codemagic 上可用 Xcode 版本不同，请按需调整；也可用 latest
-      xcode: "16.0"
+      # Codemagic 当前默认 Xcode 为 26.6；用 latest 别名自动跟随最新稳定版，
+      # 避免写死版本日后被废弃导致构建失败。如需锁定可改回具体版本号。
+      xcode: "latest"
       cocoapods: default
 
     triggering:
@@ -45,4 +46,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - user@example.com   # 改成你的邮箱，构建完成会收到下载链接
+          - hoxin825@gmail.com   # 构建完成会收到下载链接
