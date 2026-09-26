@@ -29,16 +29,39 @@ fi
 npx cap sync ios
 
 echo "==> [3/4] 以不签名方式 archive"
-cd "$REPO_ROOT/ios/App"
-rm -rf /tmp/App.xcarchive
-xcodebuild \
-  -workspace App.xcworkspace \
-  -scheme "$APP_SCHEME" \
-  -configuration Release \
-  -archivePath /tmp/App.xcarchive \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGN_IDENTITY="" \
-  archive
+# Capacitor 把原生工程放在 ios/App/；其中既有 App.xcworkspace 也可能只有
+# App.xcodeproj（不同版本/Swift Package Manager 下结构略有差异）。
+# 这里动态查找，避免写死相对路径导致 'App.xcworkspace does not exist'。
+cd "$REPO_ROOT/ios"
+echo "ios/ 顶层内容："
+ls -la
+WS=$(find "$REPO_ROOT/ios" -maxdepth 3 -name "*.xcworkspace" | head -n1)
+PROJ=$(find "$REPO_ROOT/ios" -maxdepth 3 -name "*.xcodeproj" | head -n1)
+
+if [ -n "$WS" ]; then
+  echo "使用 workspace: $WS"
+  xcodebuild \
+    -workspace "$WS" \
+    -scheme "$APP_SCHEME" \
+    -configuration Release \
+    -archivePath /tmp/App.xcarchive \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGN_IDENTITY="" \
+    archive
+elif [ -n "$PROJ" ]; then
+  echo "使用 project: $PROJ"
+  xcodebuild \
+    -project "$PROJ" \
+    -scheme "$APP_SCHEME" \
+    -configuration Release \
+    -archivePath /tmp/App.xcarchive \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGN_IDENTITY="" \
+    archive
+else
+  echo "❌ 在 ios/ 下未找到任何 .xcworkspace 或 .xcodeproj，无法 archive"
+  exit 1
+fi
 
 echo "==> [4/4] 打包未签名 ipa（供 TrollStore 自签）"
 cd /tmp/App.xcarchive/Products/Applications
